@@ -1,15 +1,17 @@
-# SUT RFID Asset Management MVP
+# SUT Asset RFID UI v2
 
-ระบบต้นแบบตรวจนับครุภัณฑ์ด้วย RFID UHF สำหรับใช้งานบนมือถือ/เว็บ
+ต้นแบบเว็บแอปสำหรับระบบตรวจนับครุภัณฑ์ด้วย RFID UHF ตามหน้าจอตัวอย่าง
 
 ## ไฟล์
-- index.html — โครงหน้าเว็บ
-- style.css — หน้าตาและ responsive/mobile UI
-- app.js — ระบบ login, dashboard, รายการครุภัณฑ์, scan จำลอง, import/export Excel, localStorage
-- manifest.json — PWA
+- `index.html` โครงสร้างทุกหน้าของเว็บแอป
+- `style.css` รูปแบบหน้าจอ Responsive สำหรับมือถือและคอมพิวเตอร์
+- `app.js` ระบบนำทาง ข้อมูลจำลอง RFID localStorage การสแกนจำลอง รายงาน และส่งออก CSV
 
-## ใช้งาน
-เปิด `index.html` หรือ Deploy ด้วย GitHub Pages
+## วิธีใช้
+1. อัปโหลดไฟล์ทั้ง 3 ไฟล์ขึ้น GitHub repository เดิม โดยแทนที่ไฟล์เก่า
+2. GitHub Pages ใช้ `main` และ `/root`
+3. เปิด URL GitHub Pages แล้วกดเข้าสู่ระบบ
+4. กด `เริ่มตรวจนับ` เพื่อดูการสแกนจำลอง
 
-> ตอนนี้ส่วน RFID/ESP32 เป็น "โหมดจำลอง" ก่อน เพื่อทดสอบ Workflow บนมือถือจริง
-> ขั้นถัดไปสามารถเชื่อม Bluetooth BLE/SPP กับ ESP32 + UHF reader ได้
+## หมายเหตุ
+เวอร์ชันนี้ยังไม่ได้เชื่อม Bluetooth/R200/ESP32 หรือฐานข้อมูล Cloud จริง การสแกนเป็นข้อมูลจำลองในเบราว์เซอร์เพื่อทดสอบหน้าจอและ workflow ก่อนเชื่อมฮาร์ดแวร์จริง

@@ -1,0 +1,10 @@
+{
+  "name": "SUT Asset RFID",
+  "short_name": "SUT RFID",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f8fc",
+  "theme_color": "#005baa",
+  "lang": "th",
+  "icons": []
+}

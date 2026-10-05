@@ -101,7 +101,7 @@ function showPage(page) {
 
   const titles = {
     home:'หน้าหลัก', scan:'กำลังตรวจนับ', assets:'ผลการตรวจนับ', detail:'รายละเอียดครุภัณฑ์',
-    history:'ประวัติการตรวจนับ', settings:'ตั้งค่า', reports:'รายงาน'
+    history:'ประวัติการตรวจนับ', import:'นำเข้าข้อมูล CSV', settings:'ตั้งค่า', reports:'รายงาน'
   };
   $('pageTitle').textContent = titles[page] || 'SUT Asset RFID';
   document.querySelectorAll('.bottom-nav button').forEach(btn => {
@@ -302,6 +302,202 @@ function testRFID() {
   showToast('ทดสอบ RFID สำเร็จ • ESP32-01 พร้อมรับข้อมูลจาก R200');
 }
 
+
+let csvImportRows = [];
+let csvImportHeaders = [];
+let csvImportMapping = {};
+
+const CSV_FIELDS = [
+  {key:'code', label:'เลขครุภัณฑ์', required:false, aliases:['เลขครุภัณฑ์','รหัสครุภัณฑ์','รหัส','assetcode','assetid','code']},
+  {key:'name', label:'ชื่อครุภัณฑ์', required:true, aliases:['ชื่อครุภัณฑ์','รายการครุภัณฑ์','ชื่อรายการ','ชื่อ','assetname','name']},
+  {key:'epc', label:'EPC Tag', required:true, aliases:['epc tag','epctag','epc','tag','rfid','รหัสepc','อีพีซี']},
+  {key:'room', label:'สถานที่', required:false, aliases:['สถานที่','สถานที่ใช้งาน','ที่ตั้ง','ห้อง','location','room']},
+  {key:'model', label:'ยี่ห้อ / รุ่น', required:false, aliases:['ยี่ห้อ / รุ่น','ยี่ห้อ/รุ่น','ยี่ห้อ','รุ่น','model','brandmodel']},
+  {key:'serial', label:'หมายเลขเครื่อง', required:false, aliases:['หมายเลขเครื่อง','serial','serialnumber','serial no','s/n','sn']},
+  {key:'purchase', label:'วันที่จัดซื้อ', required:false, aliases:['วันที่จัดซื้อ','วันที่ซื้อ','วันที่ได้มา','purchase','purchasedate']},
+  {key:'status', label:'สถานะ', required:false, aliases:['สถานะ','สถานะระบบ','สภาพ','assetstatus','status']},
+  {key:'result', label:'ผลตรวจนับ', required:false, aliases:['ผลตรวจนับ','ผลการตรวจนับ','ผลตรวจ','result','scanresult']}
+];
+
+function normalizeHeader(value) {
+  return String(value ?? '').trim().toLowerCase().replace(/[\s_\-\/\\.()]/g,'').replace(/[^a-z0-9ก-๙]/g,'');
+}
+
+function findHeaderIndex(field) {
+  const aliases = field.aliases.map(normalizeHeader);
+  return csvImportHeaders.findIndex(h => aliases.includes(normalizeHeader(h)));
+}
+
+function parseCSVText(text) {
+  text = String(text || '').replace(/^\uFEFF/, '');
+  const sample = text.split(/\r?\n/, 5).filter(Boolean).join('\n');
+  const candidates = [',',';','\t'];
+  let delimiter = ',';
+  let best = -1;
+  for (const d of candidates) {
+    let count = 0, quoted = false;
+    for (let i=0;i<sample.length;i++) {
+      const c=sample[i];
+      if(c==='"' && sample[i+1]==='"'){i++;continue;}
+      if(c==='"') quoted=!quoted;
+      else if(c===d && !quoted) count++;
+    }
+    if(count>best){best=count;delimiter=d;}
+  }
+  const rows=[]; let row=[]; let cell=''; let quoted=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){
+      if(quoted && text[i+1]==='"'){cell+='"';i++;}
+      else quoted=!quoted;
+    } else if(c===delimiter && !quoted){row.push(cell);cell='';}
+    else if((c==='\n' || c==='\r') && !quoted){
+      if(c==='\r' && text[i+1]==='\n') i++;
+      row.push(cell); cell='';
+      if(row.some(v=>String(v).trim()!=='')) rows.push(row);
+      row=[];
+    } else cell+=c;
+  }
+  if(cell!=='' || row.length){row.push(cell); if(row.some(v=>String(v).trim()!=='')) rows.push(row);}
+  if(!rows.length) return {headers:[], data:[], delimiter};
+  const headers=rows[0].map((v,i)=>String(v).trim() || `คอลัมน์ ${i+1}`);
+  const data=rows.slice(1).map(r=>{const o={}; headers.forEach((h,i)=>o[h]=String(r[i]??'').trim()); return o;}).filter(o=>Object.values(o).some(v=>v!==''));
+  return {headers,data,delimiter};
+}
+
+async function readCSVFile(file) {
+  const buffer = await file.arrayBuffer();
+  let text;
+  try { text = new TextDecoder('utf-8', {fatal:false}).decode(buffer); }
+  catch { text = new TextDecoder().decode(buffer); }
+  if ((text.match(/�/g)||[]).length > 3) {
+    try { text = new TextDecoder('windows-874').decode(buffer); } catch {}
+  }
+  return text;
+}
+
+async function handleCSVFile(file) {
+  if (!file) return;
+  if (!/\.csv$/i.test(file.name)) { showToast('กรุณาเลือกไฟล์ .csv เท่านั้น'); return; }
+  try {
+    $('csvFileName').textContent = `${file.name} • ${(file.size/1024).toFixed(1)} KB`;
+    const text = await readCSVFile(file);
+    const parsed = parseCSVText(text);
+    csvImportHeaders = parsed.headers;
+    csvImportRows = parsed.data;
+    csvImportMapping = {};
+    CSV_FIELDS.forEach(field => { csvImportMapping[field.key] = findHeaderIndex(field); });
+    renderCSVPreview();
+    renderCSVMapping();
+    validateCSVImport();
+  } catch (error) {
+    console.error(error);
+    showToast('อ่านไฟล์ CSV ไม่สำเร็จ');
+  }
+}
+
+function renderCSVPreview() {
+  $('csvPreview').classList.remove('hidden');
+  $('csvPreviewTitle').textContent = `ตัวอย่างข้อมูล • ${csvImportHeaders.length} คอลัมน์`;
+  $('csvRowCount').textContent = `${csvImportRows.length.toLocaleString('th-TH')} รายการ`;
+  const preview = csvImportRows.slice(0,8);
+  let html = '<table class="csv-table"><thead><tr>' + csvImportHeaders.map(h=>`<th>${escapeHTML(h)}</th>`).join('') + '</tr></thead><tbody>';
+  html += preview.map(row => '<tr>'+csvImportHeaders.map(h=>`<td>${escapeHTML(row[h] ?? '')}</td>`).join('')+'</tr>').join('');
+  html += '</tbody></table>';
+  $('csvTableWrap').innerHTML = html;
+}
+
+function renderCSVMapping() {
+  $('csvMapping').classList.remove('hidden');
+  $('mappingList').innerHTML = '<div class="mapping-grid">' + CSV_FIELDS.map(field => {
+    const idx = csvImportMapping[field.key];
+    const options = ['<option value="-1">— ไม่ใช้คอลัมน์นี้ —</option>'].concat(csvImportHeaders.map((h,i)=>`<option value="${i}" ${i===idx?'selected':''}>${escapeHTML(h)}</option>`));
+    return `<div class="mapping-item"><label>${field.label} ${field.required ? '<span class="mapping-warn">*จำเป็น</span>' : ''}</label><select onchange="setCSVMapping('${field.key}',this.value)">${options.join('')}</select></div>`;
+  }).join('') + '</div>';
+}
+
+function setCSVMapping(key, value) {
+  csvImportMapping[key] = Number(value);
+  validateCSVImport();
+}
+
+function mappedValue(row, key) {
+  const idx = csvImportMapping[key];
+  return idx >= 0 && csvImportHeaders[idx] ? String(row[csvImportHeaders[idx]] ?? '').trim() : '';
+}
+
+function validateCSVImport() {
+  const requiredMissing = CSV_FIELDS.filter(f=>f.required && csvImportMapping[f.key] < 0).map(f=>f.label);
+  const validRows = csvImportRows.filter(row => mappedValue(row,'name') && mappedValue(row,'epc'));
+  const duplicateCount = validRows.length - new Set(validRows.map(r=>mappedValue(r,'epc').toUpperCase())).size;
+  const button = $('importCSVButton');
+  const ok = csvImportRows.length > 0 && requiredMissing.length === 0 && validRows.length > 0;
+  button.disabled = !ok;
+  const note = $('csvMappingNote');
+  if (note) note.remove();
+  const box = $('csvMapping');
+  if (!box) return;
+  const p=document.createElement('p'); p.id='csvMappingNote'; p.className='import-help';
+  if(requiredMissing.length) p.innerHTML=`<span class="mapping-warn">ต้องกำหนด: ${escapeHTML(requiredMissing.join(', '))}</span>`;
+  else if(duplicateCount) p.innerHTML=`<span class="mapping-warn">พบ EPC ซ้ำ ${duplicateCount} รายการ ระบบจะใช้รายการสุดท้ายของ EPC ที่ซ้ำกัน</span>`;
+  else p.innerHTML=`<span class="mapping-ok">✓ พร้อมนำเข้า ${validRows.length.toLocaleString('th-TH')} รายการ</span>`;
+  box.appendChild(p);
+}
+
+function importCSVData() {
+  if (!csvImportRows.length) return showToast('กรุณาเลือกไฟล์ CSV ก่อน');
+  const validRows = csvImportRows.map(row => {
+    const epc=mappedValue(row,'epc').toUpperCase();
+    if(!epc || !mappedValue(row,'name')) return null;
+    return {
+      epc,
+      name:mappedValue(row,'name'),
+      code:mappedValue(row,'code'),
+      room:mappedValue(row,'room'),
+      model:mappedValue(row,'model'),
+      serial:mappedValue(row,'serial'),
+      purchase:mappedValue(row,'purchase'),
+      status:mappedValue(row,'status') || 'ใช้งานได้',
+      result:mappedValue(row,'result')
+    };
+  }).filter(Boolean);
+  if(!validRows.length) return showToast('ไม่พบข้อมูลที่มีทั้งชื่อครุภัณฑ์และ EPC Tag');
+  const mode=document.querySelector('input[name="importMode"]:checked')?.value || 'merge';
+  if(mode==='replace'){
+    assets=dedupeAssets(validRows);
+    found=new Set(validRows.filter(a=>/^(พบ|found|yes|true)$/i.test(a.result)).map(a=>a.epc));
+  } else {
+    const byEpc=new Map(assets.map(a=>[String(a.epc).toUpperCase(),a]));
+    validRows.forEach(a=>byEpc.set(a.epc,a));
+    assets=[...byEpc.values()];
+    validRows.forEach(a=>{ if(a.epc) found.delete(a.epc); });
+  }
+  saveState();
+  renderAll();
+  showToast(`นำเข้าสำเร็จ ${validRows.length.toLocaleString('th-TH')} รายการ`);
+  navigate('assets');
+}
+
+function dedupeAssets(list) {
+  const map=new Map(); list.forEach(a=>map.set(a.epc,a)); return [...map.values()];
+}
+
+function downloadCSVTemplate() {
+  const headers=['เลขครุภัณฑ์','ชื่อครุภัณฑ์','EPC Tag','สถานที่','ยี่ห้อ/รุ่น','หมายเลขเครื่อง','วันที่จัดซื้อ','สถานะ'];
+  const sample=['7440-001-0001/2563','เครื่องคอมพิวเตอร์','3008B3A4F2C1E8D0','ห้องปฏิบัติการคอมพิวเตอร์','Acer Aspire 5','NXA5ET0034567890','12/03/2563','ใช้งานได้'];
+  const csv='\uFEFF'+[headers,sample].map(r=>r.map(csvCell).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='SUT_RFID_Import_Template.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  showToast('ดาวน์โหลดแบบฟอร์ม CSV แล้ว');
+}
+
+function setupCSVDropZone() {
+  const zone=$('csvDropZone'); if(!zone) return;
+  ['dragenter','dragover'].forEach(evt=>zone.addEventListener(evt,e=>{e.preventDefault();zone.classList.add('dragover');}));
+  ['dragleave','drop'].forEach(evt=>zone.addEventListener(evt,e=>{e.preventDefault();zone.classList.remove('dragover');}));
+  zone.addEventListener('drop',e=>handleCSVFile(e.dataTransfer.files?.[0]));
+  zone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('csvFile').click();}});
+}
+
 function exportReport() {
   const rows = [['เลขครุภัณฑ์','ชื่อครุภัณฑ์','EPC Tag','สถานที่','สถานะระบบ','ผลตรวจนับ']];
   assets.forEach(a => rows.push([a.code,a.name,a.epc,a.room,a.status,found.has(a.epc) ? 'พบ' : 'ไม่พบ']));
@@ -335,4 +531,5 @@ window.addEventListener('beforeunload', () => {
 });
 
 // เริ่มต้นระบบ
+setupCSVDropZone();
 renderAll();

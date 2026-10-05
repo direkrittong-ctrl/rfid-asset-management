@@ -50,6 +50,7 @@
       <button type="button" onclick="navigate('home')">⌂ <span>หน้าหลัก</span></button>
       <button type="button" onclick="navigate('scan')">⌁ <span>ตรวจนับ RFID</span></button>
       <button type="button" onclick="navigate('assets')">☷ <span>รายการครุภัณฑ์</span></button>
+      <button type="button" onclick="navigate('import')">⇧ <span>นำเข้าข้อมูล CSV</span></button>
       <button type="button" onclick="navigate('history')">◷ <span>ประวัติการตรวจนับ</span></button>
       <button type="button" onclick="navigate('reports')">▥ <span>รายงาน</span></button>
       <button type="button" onclick="navigate('settings')">⚙ <span>ตั้งค่า</span></button>
@@ -66,6 +67,7 @@
         <div class="hero-grid">
           <button class="menu-card primary-card" type="button" onclick="navigate('scan')"><span class="tile-icon">⌁</span><strong>เริ่มตรวจนับ</strong><small>สแกนครุภัณฑ์ในห้อง/พื้นที่</small></button>
           <button class="menu-card" type="button" onclick="navigate('assets')"><span class="tile-icon">☷</span><strong>รายการครุภัณฑ์</strong><small>ดูข้อมูลที่พบ</small></button>
+          <button class="menu-card" type="button" onclick="navigate('import')"><span class="tile-icon">⇧</span><strong>นำเข้าข้อมูล CSV</strong><small>นำเข้ารายการครุภัณฑ์จากไฟล์</small></button>
           <button class="menu-card" type="button" onclick="navigate('history')"><span class="tile-icon">◷</span><strong>ประวัติการตรวจนับ</strong><small>ดูย้อนหลัง</small></button>
           <button class="menu-card" type="button" onclick="navigate('settings')"><span class="tile-icon">⚙</span><strong>ตั้งค่า</strong><small>เชื่อมต่ออุปกรณ์ / การใช้งาน</small></button>
         </div>
@@ -103,6 +105,36 @@
           <button class="tab" type="button" data-filter="missing" onclick="setFilter('missing')">ไม่พบ (<span id="missingCount">0</span>)</button>
         </div>
         <div id="assetList" class="asset-list"></div>
+      </section>
+
+      <section id="import" class="page">
+        <div class="section-head"><button type="button" onclick="navigate('home')">‹</button><div><strong>นำเข้าข้อมูล CSV</strong><small>เพิ่มหรือแทนที่ข้อมูลครุภัณฑ์จากไฟล์ CSV</small></div></div>
+        <div class="import-card">
+          <div class="import-drop" id="csvDropZone" onclick="$('csvFile').click()" role="button" tabindex="0">
+            <div class="import-icon">⇧</div>
+            <strong>เลือกไฟล์ CSV</strong>
+            <small>แตะเพื่อเลือกไฟล์จากมือถือ หรือเลือกจากคอมพิวเตอร์</small>
+            <span id="csvFileName">รองรับ .csv • แนะนำบันทึกเป็น UTF-8</span>
+          </div>
+          <input id="csvFile" type="file" accept=".csv,text/csv" hidden onchange="handleCSVFile(this.files[0])">
+          <div id="csvPreview" class="csv-preview hidden">
+            <div class="preview-head"><strong id="csvPreviewTitle">ตัวอย่างข้อมูล</strong><span id="csvRowCount">0 รายการ</span></div>
+            <div id="csvTableWrap" class="csv-table-wrap"></div>
+          </div>
+          <div id="csvMapping" class="csv-mapping hidden">
+            <h3>ตรวจสอบคอลัมน์</h3>
+            <div id="mappingList"></div>
+          </div>
+          <div class="import-options">
+            <label><input type="radio" name="importMode" value="merge" checked> เพิ่ม/ปรับปรุงข้อมูลเดิม</label>
+            <label><input type="radio" name="importMode" value="replace"> แทนที่ข้อมูลครุภัณฑ์ทั้งหมด</label>
+          </div>
+          <div class="import-actions">
+            <button class="btn outline" type="button" onclick="downloadCSVTemplate()">⇩ ดาวน์โหลดแบบฟอร์ม CSV</button>
+            <button id="importCSVButton" class="btn primary" type="button" onclick="importCSVData()" disabled>✓ นำเข้าข้อมูล</button>
+          </div>
+          <p class="import-help">คอลัมน์ที่ระบบรองรับ: เลขครุภัณฑ์, ชื่อครุภัณฑ์, EPC Tag, สถานที่, ยี่ห้อ/รุ่น, หมายเลขเครื่อง, วันที่จัดซื้อ, สถานะ</p>
+        </div>
       </section>
 
       <section id="detail" class="page">

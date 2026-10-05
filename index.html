@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0567c9">
+  <meta name="theme-color" content="#3f4348">
   <meta name="description" content="SUT Asset RFID - ระบบตรวจนับครุภัณฑ์ด้วย RFID UHF">
   <title>SUT Asset RFID</title>
   <link rel="stylesheet" href="style.css">
@@ -58,26 +58,60 @@
     <div id="overlay" class="overlay hidden" onclick="closeMenu()"></div>
 
     <main class="content">
-      <section id="home" class="page active-page">
-        <div class="ready-card">
-          <div class="round-icon">▣</div>
-          <div><strong>พร้อมใช้งาน</strong><span>สแกนเพื่อเริ่มตรวจนับ</span></div>
-          <span class="ready-dot">●</span>
+      <section id="home" class="page active-page dashboard-page">
+        <div class="dashboard-head">
+          <div class="brand-block">
+            <div class="sut-logo" aria-label="SUT">SUT</div>
+            <div>
+              <div class="eyebrow">SUT ASSET RFID</div>
+              <h1>Dashboard</h1>
+              <p>ระบบตรวจนับและติดตามครุภัณฑ์ด้วย RFID (UHF)</p>
+            </div>
+          </div>
+          <div class="dashboard-user">
+            <span class="online-dot"></span>
+            <div><b id="dashboardUser">ดิเรกฤทธิ์ แสงโชติ</b><small>ผู้รับผิดชอบครุภัณฑ์</small></div>
+          </div>
         </div>
-        <div class="hero-grid">
-          <button class="menu-card primary-card" type="button" onclick="navigate('scan')"><span class="tile-icon">⌁</span><strong>เริ่มตรวจนับ</strong><small>สแกนครุภัณฑ์ในห้อง/พื้นที่</small></button>
-          <button class="menu-card" type="button" onclick="navigate('assets')"><span class="tile-icon">☷</span><strong>รายการครุภัณฑ์</strong><small>ดูข้อมูลที่พบ</small></button>
-          <button class="menu-card" type="button" onclick="navigate('import')"><span class="tile-icon">⇧</span><strong>นำเข้าข้อมูล CSV</strong><small>นำเข้ารายการครุภัณฑ์จากไฟล์</small></button>
-          <button class="menu-card" type="button" onclick="navigate('history')"><span class="tile-icon">◷</span><strong>ประวัติการตรวจนับ</strong><small>ดูย้อนหลัง</small></button>
-          <button class="menu-card" type="button" onclick="navigate('settings')"><span class="tile-icon">⚙</span><strong>ตั้งค่า</strong><small>เชื่อมต่ออุปกรณ์ / การใช้งาน</small></button>
+
+        <div class="dashboard-banner">
+          <div>
+            <span class="status-pill">● ระบบพร้อมใช้งาน</span>
+            <h2>พร้อมสำหรับการตรวจนับ</h2>
+            <p>เชื่อมต่ออุปกรณ์ RFID และเริ่มตรวจนับครุภัณฑ์ภายในห้องหรือพื้นที่ที่เลือก</p>
+          </div>
+          <button class="dashboard-scan-btn" type="button" onclick="navigate('scan')">⌁ เริ่มตรวจนับ</button>
         </div>
-        <div class="stats-grid">
-          <div><small>ทั้งหมด</small><strong id="total">0</strong></div>
-          <div><small>พบล่าสุด</small><strong id="found">0</strong></div>
-          <div><small>ใช้งานได้</small><strong id="usable">0</strong></div>
-          <div><small>รอซ่อม</small><strong id="broken">0</strong></div>
+
+        <div class="dashboard-section-title"><div><b>ภาพรวมครุภัณฑ์</b><small>ข้อมูลจากรายการครุภัณฑ์ในระบบ</small></div><span class="location-chip">⌖ อาคาร 1 ห้อง 101</span></div>
+        <div class="dashboard-stats">
+          <div class="dash-stat stat-total"><span class="dash-icon">▦</span><div><small>ครุภัณฑ์ทั้งหมด</small><strong id="total">0</strong><em>รายการ</em></div></div>
+          <div class="dash-stat stat-found"><span class="dash-icon">✓</span><div><small>พบจากการตรวจนับ</small><strong id="found">0</strong><em>รายการ</em></div></div>
+          <div class="dash-stat stat-good"><span class="dash-icon">●</span><div><small>ใช้งานได้</small><strong id="usable">0</strong><em>รายการ</em></div></div>
+          <div class="dash-stat stat-repair"><span class="dash-icon">!</span><div><small>รอซ่อม</small><strong id="broken">0</strong><em>รายการ</em></div></div>
         </div>
-        <div class="location-bar"><span>⌖ อาคาร 1 ห้อง 101</span><span>ผู้ใช้งาน : <b id="currentUser">ดิเรกฤทธิ์ แสงโชติ</b></span></div>
+
+        <div class="dashboard-grid">
+          <div class="dashboard-panel progress-panel">
+            <div class="panel-title"><b>สถานะการตรวจนับ</b><small>อัปเดตจากข้อมูลปัจจุบัน</small></div>
+            <div class="progress-ring-wrap"><div class="progress-ring"><strong id="dashboardPercent">0%</strong><span>พบแล้ว</span></div><div class="progress-info"><div><span class="legend-dot orange"></span>พบ <b id="dashboardFound">0</b></div><div><span class="legend-dot gray"></span>ยังไม่พบ <b id="dashboardMissing">0</b></div><button class="mini-link" onclick="navigate('assets')">ดูรายการทั้งหมด →</button></div></div>
+          </div>
+          <div class="dashboard-panel quick-panel">
+            <div class="panel-title"><b>เมนูด่วน</b><small>เข้าถึงงานที่ใช้บ่อย</small></div>
+            <div class="quick-actions">
+              <button onclick="navigate('import')"><span>⇧</span><b>นำเข้า CSV</b><small>เพิ่มข้อมูลครุภัณฑ์</small></button>
+              <button onclick="navigate('assets')"><span>☷</span><b>รายการครุภัณฑ์</b><small>ค้นหาและดูรายละเอียด</small></button>
+              <button onclick="navigate('history')"><span>◷</span><b>ประวัติ</b><small>ดูการตรวจนับย้อนหลัง</small></button>
+              <button onclick="navigate('reports')"><span>▥</span><b>รายงาน</b><small>สรุปและส่งออกข้อมูล</small></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-footer-card">
+          <div><span class="device-badge">RFID</span><b>ESP32-01</b><small>พร้อมเชื่อมต่อ • โหมดตรวจนับ R200</small></div>
+          <div><small>ผู้ใช้งาน</small><b id="currentUser">ดิเรกฤทธิ์ แสงโชติ</b></div>
+          <button onclick="navigate('settings')">⚙ ตั้งค่า</button>
+        </div>
       </section>
 
       <section id="scan" class="page">

@@ -54,6 +54,7 @@ function login() {
   const username = $('loginUser').value.trim() || 'ผู้ใช้งาน';
   $('currentUser').textContent = username;
   $('sideUser').textContent = username;
+  if ($('dashboardUser')) $('dashboardUser').textContent = username;
   $('loginPage').classList.add('hidden');
   $('mainApp').classList.remove('hidden');
   navigate('home');
@@ -231,6 +232,12 @@ function renderSummary() {
   $('allCount').textContent = total;
   $('foundCount').textContent = found.size;
   $('missingCount').textContent = Math.max(0, total - found.size);
+  const percent = total ? Math.round((found.size / total) * 100) : 0;
+  if ($('dashboardPercent')) $('dashboardPercent').textContent = `${percent}%`;
+  if ($('dashboardFound')) $('dashboardFound').textContent = found.size;
+  if ($('dashboardMissing')) $('dashboardMissing').textContent = Math.max(0, total - found.size);
+  const ring = document.querySelector('.progress-ring');
+  if (ring) ring.style.setProperty('--dash-p', `${percent}%`);
 }
 
 function renderAssets() {

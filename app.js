@@ -25,7 +25,7 @@ function render(){
  app.innerHTML=`<div class="shell"><aside class="sidebar">
  <div class="brand"><div class="sut-logo">SUT</div><strong>SUT Asset RFID</strong></div>
  <nav class="nav">
-  <button data-page="dashboard">📊 Dashboard</button>
+  <button data-page="dashboard">📊 หน้าหลัก</button>
   <button data-page="scan">📡 ตรวจนับ RFID</button>
   <button data-page="results">📋 ผลการตรวจนับ</button>
   <button data-page="assets">📦 ครุภัณฑ์</button>
@@ -46,7 +46,7 @@ function loginView(app){
 }
 function showPage(page){
  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
- const titles={dashboard:"Dashboard",scan:"ตรวจนับ RFID",results:"ผลการตรวจนับ",assets:"จัดการครุภัณฑ์",history:"ประวัติการตรวจนับ",reports:"รายงาน",maintenance:"Maintenance / การใช้งานและซ่อมบำรุง",users:"จัดการผู้ใช้งาน",settings:"ตั้งค่า"};
+ const titles={dashboard:"หน้าหลัก",scan:"ตรวจนับ RFID",results:"ผลการตรวจนับ",assets:"จัดการครุภัณฑ์",history:"ประวัติการตรวจนับ",reports:"รายงาน",maintenance:"Maintenance / การใช้งานและซ่อมบำรุง",users:"จัดการผู้ใช้งาน",settings:"ตั้งค่า"};
  document.getElementById("title").textContent=titles[page]||page;
  const c=document.getElementById("content");
  if(page==="dashboard")c.innerHTML=dashboard();
@@ -201,10 +201,23 @@ function deleteUser(id){
 }
 function importUsers(file){if(!file)return;const r=new FileReader();r.onload=()=>{const rows=parseCSV(r.result),U=users();let n=0;rows.forEach(x=>{const name=x.name||x["ชื่อ"]||x["ชื่อ-นามสกุล"]||"",username=x.username||x["ชื่อผู้ใช้"]||"";if(name&&username&&!U.some(u=>u.username===username)){U.push({id:Date.now().toString()+n++,name,username,password:x.password||x["รหัสผ่าน"]||"1234",role:(x.role||"user").toLowerCase()==="admin"?"admin":"user",status:"active"})}});write(K.users,U);alert(`นำเข้าผู้ใช้ ${n} รายการ`);userPage()};r.readAsText(file,"UTF-8")}
 function exportUsers(){downloadCSV("users.csv",["name","username","role","status"],users())}
-function settingsPage(){document.getElementById("content").innerHTML=`<div class="grid2"><div class="card"><h3>ข้อมูลระบบ</h3><p>ชื่อระบบ: <b>SUT Asset RFID</b></p><p>หน่วยงาน: <b>ศูนย์เครื่องมือ มหาวิทยาลัยเทคโนโลยีสุรนารี</b></p><p class="muted">ข้อมูลต้นแบบเก็บใน localStorage ของเบราว์เซอร์</p></div><div class="card"><h3>ข้อมูลเริ่มต้น</h3><button class="btn btn-light" onclick="resetDemo()">รีเซ็ตข้อมูลตัวอย่าง</button><p class="mini muted">จะคืนข้อมูลครุภัณฑ์และผู้ใช้ตัวอย่าง แต่จะล้างประวัติการตรวจนับ</p></div></div>`}
+function settingsPage(){
+ document.getElementById("content").innerHTML=`<div class="grid2">
+ <div class="card"><h3>ข้อมูลระบบ</h3><p>ชื่อระบบ: <b>SUT Asset RFID</b></p><p>หน่วยงาน: <b>ศูนย์เครื่องมือ มหาวิทยาลัยเทคโนโลยีสุรนารี</b></p><p class="muted">ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้</p></div>
+ <div class="card"><h3>นำเข้า / ส่งออกข้อมูล CSV</h3><p class="muted">ข้อมูลแต่ละประเภทใช้ไฟล์ CSV แยกกัน เพื่อให้ Import/Export ใช้งานได้จริงและไม่ปะปนกัน</p>
+ <div class="toolbar"><label class="btn btn-orange file-label">📥 นำเข้าครุภัณฑ์ CSV<input id="setAssetImport" type="file" accept=".csv,text/csv"></label><button class="btn btn-light" onclick="exportAssets()">📤 ส่งออกครุภัณฑ์ CSV</button></div>
+ <div class="toolbar" style="margin-top:8px"><label class="btn btn-orange file-label">📥 นำเข้าผู้ใช้ CSV<input id="setUserImport" type="file" accept=".csv,text/csv"></label><button class="btn btn-light" onclick="exportUsers()">📤 ส่งออกผู้ใช้ CSV</button></div>
+ <div class="toolbar" style="margin-top:8px"><label class="btn btn-orange file-label">📥 นำเข้า Maintenance CSV<input id="setMaintImport" type="file" accept=".csv,text/csv"></label><button class="btn btn-light" onclick="exportMaintenance()">📤 ส่งออก Maintenance CSV</button></div>
+ <div class="toolbar" style="margin-top:8px"><label class="btn btn-orange file-label">📥 นำเข้าประวัติ RFID CSV<input id="setHistoryImport" type="file" accept=".csv,text/csv"></label><button class="btn btn-light" onclick="exportHistory()">📤 ส่งออกประวัติ RFID CSV</button></div></div>
+ <div class="card"><h3>รูปแบบไฟล์ CSV</h3><p><b>ครุภัณฑ์:</b> assetNo,name,epc,brand,model,location,responsible,status,usageStatus,assignedUser,usageCount,maintenanceIntervalDays,lastMaintenance,nextMaintenance</p><p><b>ผู้ใช้:</b> name,username,password,role,status</p><p><b>Maintenance:</b> date,type,asset,user,status,detail,hours,cost</p><p><b>ประวัติ RFID:</b> date,user,total,found</p><p class="mini muted">รองรับ UTF-8 CSV และมี BOM เพื่อให้ภาษาไทยเปิดใน Excel ได้</p></div>
+ <div class="card"><h3>ข้อมูลเริ่มต้น</h3><button class="btn btn-danger" onclick="resetDemo()">รีเซ็ตข้อมูลตัวอย่าง</button><p class="mini muted">คืนข้อมูลตัวอย่างและล้างประวัติการตรวจนับ/Maintenance</p></div></div>`;
+ document.getElementById("setAssetImport").onchange=e=>importAssets(e.target.files[0]);document.getElementById("setUserImport").onchange=e=>importUsers(e.target.files[0]);document.getElementById("setMaintImport").onchange=e=>importMaintenance(e.target.files[0]);document.getElementById("setHistoryImport").onchange=e=>importHistory(e.target.files[0]);
+}
 function resetDemo(){if(confirm("ยืนยันรีเซ็ตข้อมูลตัวอย่าง?")){write(K.assets,SAMPLE_ASSETS);write(K.users,DEFAULT_USERS);write(K.history,[]);write(K.maintenance,[]);alert("รีเซ็ตแล้ว");render()}}
 function modal(html){const b=document.getElementById("modalBg");b.innerHTML=`<div class="modal">${html}</div>`;b.style.display="flex"}
 function closeModal(){document.getElementById("modalBg").style.display="none"}
 function parseCSV(text){const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(x=>x.trim());if(!lines.length)return[];const split=s=>{let out=[],cur="",q=false;for(let i=0;i<s.length;i++){const ch=s[i];if(ch==='"'&&s[i+1]==='"'){cur+='"';i++;continue}if(ch==='"'){q=!q;continue}if(ch===","&&!q){out.push(cur.trim());cur="";continue}cur+=ch}out.push(cur.trim());return out};const h=split(lines[0]).map(x=>x.toLowerCase());return lines.slice(1).map(line=>{const a=split(line),o={};h.forEach((x,i)=>o[x]=a[i]||"");return o})}
+function importMaintenance(file){if(!file)return;const r=new FileReader();r.onload=()=>{const rows=parseCSV(r.result),M=maintenance();let n=0;rows.forEach(x=>{const ref=x.assetId||x.asset||x["ครุภัณฑ์"]||"";const a=assets().find(z=>z.id===ref||z.assetNo===ref||z.epc===ref||z.name===ref);M.push({id:Date.now().toString()+n++,date:x.date||x["วันที่"]||new Date().toISOString(),type:x.type||x["ประเภท"]||"maintenance",typeLabel:x.typeLabel||x["รายการ"]||x["ประเภท"]||"บำรุงรักษา",assetId:a?.id||ref,assetName:a?.name||x.assetName||x["ชื่อครุภัณฑ์"]||ref,user:x.user||x["ผู้ใช้งาน"]||x["ผู้แจ้ง"]||"",status:x.status||x["สถานะ"]||"เสร็จสิ้น",detail:x.detail||x["รายละเอียด"]||"",hours:Number(x.hours||x["ชั่วโมง"]||0),cost:Number(x.cost||x["ค่าใช้จ่าย"]||0)});});write(K.maintenance,M);alert(`นำเข้า Maintenance ${n} รายการ`);showPage("maintenance")};r.readAsText(file,"UTF-8")}
+function importHistory(file){if(!file)return;const r=new FileReader();r.onload=()=>{const rows=parseCSV(r.result),H=history();let n=0;rows.forEach(x=>{const found=String(x.found||x["พบ"]||"").split(/[;|]/).map(v=>v.trim()).filter(Boolean);H.unshift({id:Date.now().toString()+n++,date:x.date||x["วันที่"]||new Date().toISOString(),user:x.user||x["ผู้ตรวจ"]||"",total:Number(x.total||x["ทั้งหมด"]||assets().length),found});n++});write(K.history,H);alert(`นำเข้าประวัติ RFID ${n} รายการ`);showPage("history")};r.readAsText(file,"UTF-8")}
 function downloadCSV(name,headers,rows){const lines=[headers.join(","),...rows.map(r=>headers.map(h=>`"${String(r[h]??"").replace(/"/g,'""')}"`).join(","))];const blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 render();

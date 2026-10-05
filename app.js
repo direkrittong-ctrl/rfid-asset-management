@@ -1,198 +1,195 @@
-const KEY_USERS = "sut_rfid_users_v1";
-const KEY_SESSION = "sut_rfid_session_v1";
-
-const seedUsers = [
-  {id:"admin-001",name:"ผู้ดูแลระบบ",username:"admin",role:"Admin",department:"ศูนย์เครื่องมือ มทส.",status:"active"},
-  {id:"user-001",name:"ดิเรกฤทธิ์ แสงโชติ",username:"direkrit",role:"ผู้ใช้งาน",department:"ศูนย์เครื่องมือ มทส.",status:"active"}
+const DEFAULT_USERS = [
+  {id:"1",username:"admin",name:"ผู้ดูแลระบบ",role:"admin",status:"active"},
+  {id:"2",username:"user",name:"ผู้ใช้งานตัวอย่าง",role:"user",status:"active"}
 ];
+
+const USER_KEY = "sut_rfid_users_v1";
+const LOGIN_KEY = "sut_rfid_login_v1";
 
 function getUsers(){
   try{
-    const data=JSON.parse(localStorage.getItem(KEY_USERS));
+    const data = JSON.parse(localStorage.getItem(USER_KEY));
     if(Array.isArray(data) && data.length) return data;
   }catch(e){}
-  localStorage.setItem(KEY_USERS,JSON.stringify(seedUsers));
-  return seedUsers;
+  localStorage.setItem(USER_KEY, JSON.stringify(DEFAULT_USERS));
+  return [...DEFAULT_USERS];
 }
-function saveUsers(users){localStorage.setItem(KEY_USERS,JSON.stringify(users))}
-function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function uid(){return "u-"+Date.now()+"-"+Math.random().toString(16).slice(2)}
-function isLogged(){return localStorage.getItem(KEY_SESSION)==="1"}
-
+function saveUsers(users){ localStorage.setItem(USER_KEY, JSON.stringify(users)); }
+function escapeHtml(v){
+  return String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
 function render(){
-  if(!isLogged()){renderLogin();return}
-  renderApp();
+  const app=document.getElementById("app");
+  const login=localStorage.getItem(LOGIN_KEY);
+  if(!login){ renderLogin(app); return; }
+  renderDashboard(app);
 }
-function renderLogin(){
-  document.getElementById("app").innerHTML=`
-  <div class="login">
-    <div class="login-card">
-      <div class="logo login-logo">SUT</div>
+function renderLogin(app){
+  app.innerHTML=`
+  <main class="login-page">
+    <section class="login-card">
+      <div class="sut-logo">SUT</div>
       <h1>ระบบจัดการครุภัณฑ์ RFID</h1>
-      <p>ศูนย์เครื่องมือ มหาวิทยาลัยเทคโนโลยีสุรนารี</p>
-      <input id="loginUser" class="input" placeholder="ชื่อผู้ใช้งาน" autocomplete="username">
-      <input id="loginPass" class="input" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
-      <div id="loginError" class="login-error"></div>
-      <button class="btn btn-primary" style="width:100%" onclick="login()">เข้าสู่ระบบ</button>
-      <div style="font-size:12px;color:#9aa7b5;margin-top:14px">สำหรับต้นแบบ GitHub Pages • ข้อมูลเก็บในเบราว์เซอร์</div>
-    </div>
-  </div>`;
+      <p class="subtitle">ศูนย์เครื่องมือ มหาวิทยาลัยเทคโนโลยีสุรนารี</p>
+      <form id="loginForm">
+        <input id="username" class="field" placeholder="ชื่อผู้ใช้งาน" autocomplete="username">
+        <input id="password" class="field" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
+        <div id="loginError" class="error"></div>
+        <button class="btn btn-primary login-btn" type="submit">เข้าสู่ระบบ</button>
+      </form>
+      <div class="login-foot">ระบบต้นแบบ GitHub Pages • ข้อมูลเก็บในเบราว์เซอร์</div>
+    </section>
+  </main>`;
+  document.getElementById("loginForm").addEventListener("submit", e=>{
+    e.preventDefault();
+    const u=document.getElementById("username").value.trim();
+    const p=document.getElementById("password").value;
+    const err=document.getElementById("loginError");
+    if(!u || !p){ err.textContent="กรุณากรอกชื่อผู้ใช้และรหัสผ่าน"; return; }
+    // Demo credentials for this static prototype.
+    if(u==="admin" && p==="1234"){
+      localStorage.setItem(LOGIN_KEY, JSON.stringify({username:"admin",role:"admin"}));
+      render();
+    }else if(u==="user" && p==="1234"){
+      localStorage.setItem(LOGIN_KEY, JSON.stringify({username:"user",role:"user"}));
+      render();
+    }else{
+      err.textContent="ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+    }
+  });
 }
-function login(){
-  const u=document.getElementById("loginUser").value.trim();
-  const p=document.getElementById("loginPass").value;
-  // Demo credentials. Change before real deployment.
-  if(u==="admin" && p==="1234"){
-    localStorage.setItem(KEY_SESSION,"1"); render();
-  }else document.getElementById("loginError").textContent="ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
-}
-function logout(){localStorage.removeItem(KEY_SESSION);render()}
-
-function renderApp(){
+function renderDashboard(app){
+  const login=JSON.parse(localStorage.getItem(LOGIN_KEY)||"{}");
   const users=getUsers();
-  const active=users.filter(x=>x.status==="active").length;
-  const admins=users.filter(x=>x.role==="Admin").length;
-  document.getElementById("app").innerHTML=`
-  <header class="topbar">
-    <div class="brand"><div class="logo">SUT</div><div><strong>SUT Asset RFID</strong><small>ระบบจัดการครุภัณฑ์ • ศูนย์เครื่องมือ มทส.</small></div></div>
-    <div class="top-user"><div class="avatar">A</div><span style="font-size:13px">ผู้ดูแลระบบ</span><button class="btn btn-light" onclick="logout()">ออกจากระบบ</button></div>
-  </header>
-  <div class="layout">
+  app.innerHTML=`
+  <div class="shell">
     <aside class="sidebar">
-      <div class="nav-title">เมนูหลัก</div>
-      <button class="nav active" onclick="showSection('dashboard')">📊 Dashboard</button>
-      <button class="nav" onclick="showSection('users')">👥 จัดการผู้ใช้งาน</button>
-      <button class="nav" onclick="showSection('assets')">📦 ครุภัณฑ์</button>
-      <button class="nav" onclick="showSection('scan')">📡 ตรวจนับ RFID</button>
-      <div class="nav-title" style="margin-top:18px">ระบบ</div>
-      <button class="nav" onclick="showSection('settings')">⚙️ ตั้งค่า</button>
+      <div class="brand"><div class="sut-logo">SUT</div><strong>SUT Asset RFID</strong></div>
+      <nav class="nav">
+        <button class="active" data-page="dashboard">📊 Dashboard</button>
+        <button data-page="users">👥 จัดการผู้ใช้งาน</button>
+        <button data-page="assets">📦 ครุภัณฑ์</button>
+        <button data-page="scan">📡 ตรวจนับ RFID</button>
+      </nav>
     </aside>
-    <main class="main" id="content"></main>
+    <main class="main">
+      <div class="topbar"><h2 id="pageTitle">Dashboard</h2><div class="user-chip">👤 ${escapeHtml(login.username)} <button id="logout" class="btn btn-light">ออกจากระบบ</button></div></div>
+      <div id="content"></div>
+    </main>
   </div>
-  <nav class="mobile-nav">
-    <button class="active" onclick="showSection('dashboard')">📊<br>หน้าหลัก</button>
-    <button onclick="showSection('users')">👥<br>ผู้ใช้</button>
-    <button onclick="showSection('assets')">📦<br>ครุภัณฑ์</button>
-    <button onclick="showSection('scan')">📡<br>สแกน</button>
-  </nav>`;
-  showSection("dashboard");
+  <div id="modalBg" class="modal-bg"></div>`;
+  document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+  document.getElementById("logout").onclick=()=>{localStorage.removeItem(LOGIN_KEY);render();};
+  showPage("dashboard");
 }
-function showSection(section){
-  document.querySelectorAll(".nav").forEach(x=>x.classList.remove("active"));
-  const map={dashboard:"Dashboard",users:"จัดการผู้ใช้งาน",assets:"ครุภัณฑ์",scan:"ตรวจนับ RFID",settings:"ตั้งค่า"};
-  document.getElementById("content").innerHTML = section==="users" ? usersPage() : genericPage(section,map[section]);
+function showPage(page){
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
+  const title={dashboard:"Dashboard",users:"จัดการผู้ใช้งาน",assets:"จัดการครุภัณฑ์",scan:"ตรวจนับ RFID"}[page];
+  document.getElementById("pageTitle").textContent=title;
+  const content=document.getElementById("content");
+  if(page==="dashboard") content.innerHTML=dashboardHtml();
+  if(page==="users") usersHtml();
+  if(page==="assets") content.innerHTML=placeholder("📦","จัดการครุภัณฑ์","ส่วนนี้เตรียมไว้สำหรับนำเข้ารายการครุภัณฑ์ CSV และเชื่อมต่อ RFID");
+  if(page==="scan") content.innerHTML=placeholder("📡","ตรวจนับ RFID","ส่วนนี้จะเชื่อมต่อ ESP32 + UHF RFID Reader ในขั้นตอนถัดไป");
 }
-function genericPage(section,title){
-  if(section==="dashboard"){
-    const users=getUsers(), active=users.filter(x=>x.status==="active").length;
-    return `<div class="page-head"><div><h1>Dashboard</h1><p>ภาพรวมระบบตรวจนับครุภัณฑ์ RFID</p></div><div class="actions"><button class="btn btn-orange" onclick="showSection('users')">+ จัดการผู้ใช้งาน</button></div></div>
-    <div class="cards">
-      <div class="card stat"><div class="stat-icon">👥</div><div><small>ผู้ใช้งานทั้งหมด</small><b>${users.length}</b></div></div>
-      <div class="card stat green"><div class="stat-icon">✓</div><div><small>ใช้งานอยู่</small><b>${active}</b></div></div>
-      <div class="card stat orange"><div class="stat-icon">👑</div><div><small>ผู้ดูแลระบบ</small><b>${users.filter(x=>x.role==="Admin").length}</b></div></div>
-      <div class="card stat red"><div class="stat-icon">📦</div><div><small>ครุภัณฑ์</small><b>0</b></div></div>
-    </div>
-    <div class="card panel"><div class="panel-title"><h2>พร้อมใช้งาน</h2><span class="badge green">ระบบออนไลน์</span></div>
-    <p style="color:var(--muted)">เริ่มจากเมนู <b>จัดการผู้ใช้งาน</b> เพื่อเพิ่มผู้ใช้รายบุคคล หรือนำเข้าผู้ใช้จำนวนมากด้วยไฟล์ CSV</p></div>`;
-  }
-  return `<div class="page-head"><div><h1>${title}</h1><p>โมดูลนี้เตรียมไว้สำหรับเชื่อมต่อระบบหลัก</p></div></div><div class="card panel"><div class="empty">ยังไม่มีข้อมูลในส่วนนี้</div></div>`;
-}
-function usersPage(){
+function dashboardHtml(){
   const users=getUsers();
-  return `<div class="page-head"><div><h1>จัดการผู้ใช้งาน</h1><p>เพิ่ม แก้ไข ลบ และนำเข้าผู้ใช้งานด้วย CSV</p></div>
-  <div class="actions"><button class="btn btn-light" onclick="openImport()">⬆ นำเข้า CSV</button><button class="btn btn-primary" onclick="openUser()">+ เพิ่มผู้ใช้งาน</button></div></div>
-  <div class="notice">หมายเหตุ: เวอร์ชัน GitHub Pages นี้เป็นต้นแบบแบบ Static ข้อมูลผู้ใช้จะถูกเก็บใน <b>LocalStorage</b> ของเครื่องที่ใช้งาน จึงยังไม่ใช่ระบบบัญชีผู้ใช้แบบปลอดภัยสำหรับใช้งานจริงหลายเครื่อง</div>
-  <div class="cards">
-   <div class="card stat"><div class="stat-icon">👥</div><div><small>ทั้งหมด</small><b>${users.length}</b></div></div>
-   <div class="card stat green"><div class="stat-icon">✓</div><div><small>ใช้งาน</small><b>${users.filter(x=>x.status==="active").length}</b></div></div>
-   <div class="card stat red"><div class="stat-icon">×</div><div><small>ปิดใช้งาน</small><b>${users.filter(x=>x.status!=="active").length}</b></div></div>
-   <div class="card stat orange"><div class="stat-icon">👑</div><div><small>Admin</small><b>${users.filter(x=>x.role==="Admin").length}</b></div></div>
+  const active=users.filter(u=>u.status==="active").length;
+  return `<div class="cards">
+    <div class="card"><div class="muted">ผู้ใช้งานทั้งหมด</div><div class="stat">${users.length}</div></div>
+    <div class="card"><div class="muted">ใช้งานอยู่</div><div class="stat">${active}</div></div>
+    <div class="card"><div class="muted">ผู้ดูแลระบบ</div><div class="stat">${users.filter(u=>u.role==="admin").length}</div></div>
+    <div class="card"><div class="muted">ครุภัณฑ์</div><div class="stat">0</div></div>
   </div>
-  <div class="card panel">
-   <div class="searchrow"><input id="userSearch" class="input search" placeholder="🔎 ค้นหาชื่อ / Username / หน่วยงาน" oninput="filterUsers()"></div>
-   <div class="table-wrap"><table><thead><tr><th>ชื่อผู้ใช้งาน</th><th>Username</th><th>สิทธิ์</th><th>หน่วยงาน</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="userRows">${userRows(users)}</tbody></table></div>
-  </div>`;
+  <div class="section"><div class="card"><h3>ระบบจัดการครุภัณฑ์ RFID</h3><p class="muted">เลือกเมนู “จัดการผู้ใช้งาน” เพื่อเพิ่ม แก้ไข ลบ หรือ Import CSV ผู้ใช้งาน</p></div></div>`;
 }
-function userRows(users){
-  if(!users.length)return `<tr><td colspan="6" class="empty">ไม่พบข้อมูลผู้ใช้งาน</td></tr>`;
-  return users.map(u=>`<tr>
-    <td><b>${esc(u.name)}</b></td><td>${esc(u.username)}</td>
-    <td><span class="badge ${u.role==="Admin"?"orange":"blue"}">${esc(u.role)}</span></td>
-    <td>${esc(u.department)}</td>
-    <td><span class="badge ${u.status==="active"?"green":"red"}">${u.status==="active"?"ใช้งาน":"ปิดใช้งาน"}</span></td>
-    <td><div class="row-actions"><button class="iconbtn" onclick='openUser(${JSON.stringify(u).replace(/'/g,"&#39;")})'>แก้ไข</button><button class="iconbtn delete" onclick="deleteUser('${u.id}')">ลบ</button></div></td>
-  </tr>`).join("");
+function usersHtml(){
+  const content=document.getElementById("content");
+  content.innerHTML=`<div class="section-head">
+    <div class="toolbar">
+      <input id="searchUser" class="field" placeholder="ค้นหาชื่อหรือ Username">
+      <button id="addUser" class="btn btn-primary">＋ เพิ่มผู้ใช้งาน</button>
+      <label class="btn btn-orange file-label">📥 Import CSV<input id="csvFile" class="hidden" type="file" accept=".csv,text/csv"></label>
+      <button id="exportCsv" class="btn btn-light">📤 Export CSV</button>
+    </div>
+  </div><div class="table-wrap"><table><thead><tr><th>ชื่อ</th><th>Username</th><th>สิทธิ์</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="userRows"></tbody></table></div>`;
+  document.getElementById("addUser").onclick=()=>openUserModal();
+  document.getElementById("searchUser").oninput=()=>drawUsers();
+  document.getElementById("csvFile").onchange=e=>importCSV(e.target.files[0]);
+  document.getElementById("exportCsv").onclick=exportCSV;
+  drawUsers();
 }
-function filterUsers(){
-  const q=document.getElementById("userSearch").value.toLowerCase();
-  const users=getUsers().filter(u=>[u.name,u.username,u.department,u.role].join(" ").toLowerCase().includes(q));
-  document.getElementById("userRows").innerHTML=userRows(users);
+function drawUsers(){
+  const q=(document.getElementById("searchUser")?.value||"").toLowerCase();
+  const rows=getUsers().filter(u=>(u.name+" "+u.username).toLowerCase().includes(q));
+  document.getElementById("userRows").innerHTML=rows.length?rows.map(u=>`<tr>
+    <td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.username)}</td><td>${u.role==="admin"?"Admin":"User"}</td>
+    <td><span class="status ${u.status==="active"?"on":"off"}">${u.status==="active"?"ใช้งาน":"ปิดใช้งาน"}</span></td>
+    <td><button class="btn btn-light" onclick="openUserModal('${u.id}')">แก้ไข</button> <button class="btn btn-danger" onclick="deleteUser('${u.id}')">ลบ</button></td>
+  </tr>`).join(""):`<tr><td colspan="5" class="empty">ไม่พบข้อมูลผู้ใช้งาน</td></tr>`;
 }
-function openUser(user=null){
-  const u=user||{id:"",name:"",username:"",role:"ผู้ใช้งาน",department:"ศูนย์เครื่องมือ มทส.",status:"active"};
-  document.body.insertAdjacentHTML("beforeend",`<div class="modal-back show" id="modal"><div class="modal">
-    <div class="modal-head"><h3>${u.id?"แก้ไขผู้ใช้งาน":"เพิ่มผู้ใช้งาน"}</h3><button class="iconbtn" onclick="closeModal()">✕</button></div>
-    <div class="modal-body"><div class="form-grid">
-      <div class="field full"><label>ชื่อ-นามสกุล</label><input id="fName" class="input" value="${esc(u.name)}"></div>
-      <div class="field"><label>Username</label><input id="fUsername" class="input" value="${esc(u.username)}"></div>
-      <div class="field"><label>สิทธิ์</label><select id="fRole" class="input"><option ${u.role==="ผู้ใช้งาน"?"selected":""}>ผู้ใช้งาน</option><option ${u.role==="Admin"?"selected":""}>Admin</option></select></div>
-      <div class="field full"><label>หน่วยงาน</label><input id="fDepartment" class="input" value="${esc(u.department)}"></div>
-      <div class="field"><label>สถานะ</label><select id="fStatus" class="input"><option value="active" ${u.status==="active"?"selected":""}>ใช้งาน</option><option value="inactive" ${u.status!=="active"?"selected":""}>ปิดใช้งาน</option></select></div>
-    </div></div>
-    <div class="modal-foot"><button class="btn btn-light" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick='saveUser("${u.id}")'>บันทึก</button></div>
-  </div></div>`);
+function openUserModal(id){
+  const u=id?getUsers().find(x=>x.id===id):{name:"",username:"",role:"user",status:"active"};
+  const bg=document.getElementById("modalBg");
+  bg.style.display="flex";
+  bg.innerHTML=`<div class="modal"><h3>${id?"แก้ไขผู้ใช้งาน":"เพิ่มผู้ใช้งาน"}</h3>
+    <input id="mName" class="field" placeholder="ชื่อ-นามสกุล" value="${escapeHtml(u.name)}">
+    <input id="mUsername" class="field" placeholder="Username" value="${escapeHtml(u.username)}">
+    <input id="mPassword" class="field" type="password" placeholder="${id?"เว้นว่างหากไม่เปลี่ยนรหัสผ่าน":"รหัสผ่าน"}">
+    <select id="mRole" class="field"><option value="user" ${u.role==="user"?"selected":""}>User</option><option value="admin" ${u.role==="admin"?"selected":""}>Admin</option></select>
+    <select id="mStatus" class="field"><option value="active" ${u.status==="active"?"selected":""}>ใช้งาน</option><option value="inactive" ${u.status==="inactive"?"selected":""}>ปิดใช้งาน</option></select>
+    <div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveUser('${id||""}')">บันทึก</button></div></div>`;
 }
+function closeModal(){document.getElementById("modalBg").style.display="none";}
 function saveUser(id){
-  const name=document.getElementById("fName").value.trim(), username=document.getElementById("fUsername").value.trim();
-  if(!name||!username){alert("กรุณากรอกชื่อและ Username");return}
-  let users=getUsers();
-  if(users.some(u=>u.username.toLowerCase()===username.toLowerCase() && u.id!==id)){alert("Username นี้มีอยู่แล้ว");return}
-  const data={id:id||uid(),name,username,role:document.getElementById("fRole").value,department:document.getElementById("fDepartment").value.trim(),status:document.getElementById("fStatus").value};
-  if(id) users=users.map(u=>u.id===id?data:u); else users.push(data);
-  saveUsers(users);closeModal();showSection("users");
+  const name=document.getElementById("mName").value.trim(), username=document.getElementById("mUsername").value.trim(), password=document.getElementById("mPassword").value;
+  if(!name||!username||(!id&&!password)){alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");return;}
+  const users=getUsers();
+  if(users.some(u=>u.username===username&&u.id!==id)){alert("Username นี้มีอยู่แล้ว");return;}
+  if(id){
+    const u=users.find(x=>x.id===id); Object.assign(u,{name,username,role:document.getElementById("mRole").value,status:document.getElementById("mStatus").value});
+    if(password) u.password=password;
+  }else users.push({id:Date.now().toString(),name,username,password,role:document.getElementById("mRole").value,status:document.getElementById("mStatus").value});
+  saveUsers(users);closeModal();usersHtml();
 }
 function deleteUser(id){
-  const users=getUsers(), target=users.find(u=>u.id===id);
-  if(!target)return;
-  if(target.username==="admin"){alert("ไม่อนุญาตให้ลบ Admin หลัก");return}
-  if(!confirm(`ต้องการลบผู้ใช้งาน "${target.name}" ใช่หรือไม่?`))return;
-  saveUsers(users.filter(u=>u.id!==id));showSection("users");
-}
-function openImport(){
- document.body.insertAdjacentHTML("beforeend",`<div class="modal-back show" id="modal"><div class="modal">
-  <div class="modal-head"><h3>นำเข้าผู้ใช้งานจาก CSV</h3><button class="iconbtn" onclick="closeModal()">✕</button></div>
-  <div class="modal-body">
-   <div class="notice">หัวตารางที่แนะนำ: <b>name,username,role,department,status</b><br>ตัวอย่าง: ดิเรกฤทธิ์ แสงโชติ,direkrit,ผู้ใช้งาน,ศูนย์เครื่องมือ มทส.,active</div>
-   <div class="drop"><b>เลือกไฟล์ CSV</b><br><input id="csvFile" type="file" accept=".csv,text/csv"></div>
-  </div>
-  <div class="modal-foot"><button class="btn btn-light" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="importCSV()">นำเข้า</button></div>
- </div></div>`);
+  if(id==="1"){alert("ไม่สามารถลบ Admin หลักได้");return;}
+  if(!confirm("ยืนยันการลบผู้ใช้งานนี้?"))return;
+  saveUsers(getUsers().filter(u=>u.id!==id));drawUsers();
 }
 function parseCSV(text){
   const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(x=>x.trim());
   if(!lines.length)return [];
-  const parseLine=line=>{
-    const out=[];let cur="",quote=false;
-    for(let i=0;i<line.length;i++){const c=line[i],n=line[i+1];if(c==='"'&&n==='"'){cur+='"';i++;continue}if(c==='"'){quote=!quote;continue}if(c===','&&!quote){out.push(cur.trim());cur="";continue}cur+=c}out.push(cur.trim());return out};
-  const headers=parseLine(lines[0]).map(x=>x.toLowerCase());
-  return lines.slice(1).map(line=>{const vals=parseLine(line),o={};headers.forEach((h,i)=>o[h]=vals[i]??"");return o});
+  const split=line=>line.split(",").map(x=>x.trim().replace(/^"|"$/g,""));
+  const headers=split(lines[0]).map(x=>x.toLowerCase());
+  return lines.slice(1).map(line=>{
+    const a=split(line), o={};
+    headers.forEach((h,i)=>o[h]=a[i]||"");
+    return o;
+  });
 }
-function importCSV(){
- const file=document.getElementById("csvFile").files[0]; if(!file){alert("กรุณาเลือกไฟล์ CSV");return}
- const reader=new FileReader();
- reader.onload=e=>{
-   const rows=parseCSV(e.target.result), users=getUsers(); let added=0,updated=0;
-   rows.forEach(r=>{
-     const name=r.name||r["ชื่อ"]||r["ชื่อ-นามสกุล"]; const username=r.username||r["user"]||r["รหัสผู้ใช้"];
-     if(!name||!username)return;
-     const obj={id:uid(),name,username,role:r.role||r["สิทธิ์"]||"ผู้ใช้งาน",department:r.department||r["หน่วยงาน"]||"ศูนย์เครื่องมือ มทส.",status:(r.status||"active").toLowerCase()==="inactive"?"inactive":"active"};
-     const idx=users.findIndex(u=>u.username.toLowerCase()===username.toLowerCase());
-     if(idx>=0){obj.id=users[idx].id;users[idx]=obj;updated++}else{users.push(obj);added++}
-   });
-   saveUsers(users);closeModal();showSection("users");alert(`นำเข้าเสร็จแล้ว\\nเพิ่มใหม่ ${added} รายการ\\nอัปเดต ${updated} รายการ`);
- };
- reader.readAsText(file,"UTF-8");
+function importCSV(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    const rows=parseCSV(r.result);
+    const users=getUsers();
+    let added=0;
+    rows.forEach(row=>{
+      const name=row.name||row["ชื่อ"]||row["ชื่อ-นามสกุล"]||"";
+      const username=row.username||row["username"]||row["ชื่อผู้ใช้"]||"";
+      if(!name||!username||users.some(u=>u.username===username))return;
+      users.push({id:Date.now().toString()+added,name,username,password:row.password||row["รหัสผ่าน"]||"1234",role:(row.role||"user").toLowerCase()==="admin"?"admin":"user",status:"active"});added++;
+    });
+    saveUsers(users); alert(`นำเข้าเรียบร้อย ${added} รายการ`); usersHtml();
+  };
+  r.readAsText(file,"UTF-8");
 }
-function closeModal(){document.getElementById("modal")?.remove()}
-window.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+function exportCSV(){
+  const users=getUsers();
+  const lines=["name,username,role,status",...users.map(u=>[u.name,u.username,u.role,u.status].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(","))];
+  const blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="users.csv";a.click();URL.revokeObjectURL(a.href);
+}
+function placeholder(icon,title,text){return `<div class="card" style="text-align:center;padding:60px 20px"><div style="font-size:52px">${icon}</div><h2>${title}</h2><p class="muted">${text}</p></div>`;}
 render();

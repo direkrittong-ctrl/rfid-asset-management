@@ -24,7 +24,7 @@ async function connectESP32BLE(){
  const s=bridgeSupported();
  if(!s.ble)return alert('อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ Web Bluetooth หรือหน้าเว็บไม่ได้เปิดผ่าน HTTPS\nแนะนำ Android + Chrome หรือ PC + Chrome/Edge');
  try{
-  bridgeBleDevice=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'SUT-RFID'}],optionalServices:[SUT_BLE_SERVICE]});
+  bridgeBleDevice=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SUT_BLE_SERVICE]});
   bridgeBleDevice.addEventListener('gattserverdisconnected',()=>{bridgeStatus('ESP32 BLE หลุดการเชื่อมต่อ');bridgeTransport='';});
   bridgeBleServer=await bridgeBleDevice.gatt.connect();
   const service=await bridgeBleServer.getPrimaryService(SUT_BLE_SERVICE);
@@ -97,7 +97,7 @@ function scan(){
 }
 
 // Keep the existing demo/record functions and only replace the connection UI/transport.
-window.connectESP32=connectESP32USB;
+window.connectESP32=connectESP32BLE;
 window.connectESP32BLE=connectESP32BLE;
 window.connectESP32USB=connectESP32USB;
 window.disconnectESP32BLE=disconnectESP32BLE;

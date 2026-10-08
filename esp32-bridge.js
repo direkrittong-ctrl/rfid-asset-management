@@ -3,13 +3,13 @@
  *  - PC: USB Serial (Chrome/Edge) or BLE
  *  - Android: Web Bluetooth BLE
  * ESP32 BLE profile:
- *  Service      19b10000-e8f2-537e-4f6c-d104768a1214
- *  EPC Notify   19b10001-e8f2-537e-4f6c-d104768a1214
- *  Command     19b10002-e8f2-537e-4f6c-d104768a1214
+ *  Nordic UART Service (NUS)
+ *  TX Notify      6e400003-b5a3-f393-e0a9-e50e24dcca9e
+ *  RX Command     6e400002-b5a3-f393-e0a9-e50e24dcca9e
  */
-const SUT_BLE_SERVICE='19b10000-e8f2-537e-4f6c-d104768a1214';
-const SUT_BLE_EPC='19b10001-e8f2-537e-4f6c-d104768a1214';
-const SUT_BLE_CMD='19b10002-e8f2-537e-4f6c-d104768a1214';
+const SUT_BLE_SERVICE='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const SUT_BLE_EPC='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const SUT_BLE_CMD='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 let bridgeBleDevice=null,bridgeBleServer=null,bridgeBleEpc=null,bridgeBleCmd=null;
 let bridgeSerialPort=null,bridgeSerialReader=null,bridgeSerialRunning=false;
 let bridgeTransport='';

@@ -41,7 +41,7 @@ async function connectESP32BLE(){
   if(typeof render==='function')render();
  }catch(e){alert('เชื่อมต่อ Bluetooth ไม่สำเร็จ: '+e.message)}
 }
-async async function bridgeSendCommand(cmd){
+async function bridgeSendCommand(cmd){
  if(!bridgeBleCmd)return;
  try{await bridgeBleCmd.writeValue(new TextEncoder().encode(cmd+'\n'))}catch(e){}
 }

@@ -38,8 +38,11 @@ function assets(){return `<div class="toolbar"><button class="btn" onclick="asse
 function filterAssets(){let q=v('assetSearch').toLowerCase();let rows=db.assets.filter(a=>JSON.stringify(a).toLowerCase().includes(q));document.querySelector('.card table')?.replaceWith(new DOMParser().parseFromString(tableAssets(rows),'text/html').body.firstChild)}
 function scan(){let found=[...scanSeen].map(epc=>db.assets.find(a=>String(a.epc).toUpperCase()===String(epc).toUpperCase())).filter(Boolean);return `<div class="grid"><div class="card"><h3>ตรวจนับ RFID / ESP32</h3><p>เชื่อมต่อ ESP32 ผ่าน USB ด้วย Web Serial (Chrome/Edge) โดยให้ ESP32 ส่ง EPC 1 รายการต่อ 1 บรรทัดที่ 115200 baud</p><div class="toolbar"><button class="btn" onclick="connectESP32()">🔌 เชื่อมต่อ ESP32</button><button class="btn orange" onclick="startDemoScan()">เริ่มสแกนจำลอง</button><button class="btn gray" onclick="stopScan()">หยุด</button><button class="btn gray" onclick="clearScan()">ล้างผล</button></div><div class="notice">${scanRunning?'🟢 กำลังรับข้อมูลจาก ESP32':'⚪ ยังไม่ได้สแกน'}</div><p>พบ EPC <b>${scanSeen.size}</b> | ตรงกับฐานข้อมูล <b>${found.length}</b> / ${db.assets.length}</p></div><div class="card"><h3>ผลการตรวจนับ</h3>${found.length?tableAssets(found):'<div class="empty">ยังไม่พบ EPC ที่ตรงกับฐานข้อมูล</div>'}</div></div>`}
 async function connectESP32(){
-  if(typeof connectESP32BLE==='function') return connectESP32BLE();
-  alert('ระบบ Bluetooth ยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าเว็บ');
+  if(typeof window.connectESP32BLE==='function') return window.connectESP32BLE();
+  if(navigator.bluetooth&&window.isSecureContext){
+    return alert('กำลังโหลดระบบ Bluetooth กรุณารอสักครู่แล้วลองใหม่');
+  }
+  alert('เบราว์เซอร์นี้ไม่รองรับ Web Bluetooth หรือหน้าเว็บไม่ได้เปิดผ่าน HTTPS');
 }
 async function readSerial(){while(scanRunning&&serialReader){try{const {value,done}=await serialReader.read();if(done)break;if(value)value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(recordEPC)}catch(e){break}}}
 function recordEPC(epc){epc=String(epc).trim().replace(/^EPC[:=\s]*/i,'');if(!epc)return;scanSeen.add(epc.toUpperCase());let a=db.assets.find(x=>String(x.epc).toUpperCase()===epc.toUpperCase());if(a){db.usage.unshift({id:uid(),time:new Date().toLocaleString('th-TH'),user:me.name,asset:a.id,action:'ตรวจพบ RFID'});save()}if(page==='scan')render()}

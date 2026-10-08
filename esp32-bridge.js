@@ -37,11 +37,11 @@ async function connectESP32BLE(){
   });
   bridgeTransport='BLE';
   bridgeStatus('เชื่อมต่อ '+(bridgeBleDevice.name||'SUT-RFID')+' ผ่าน Bluetooth แล้ว',true);
-  if(bridgeBleCmd)await bridgeSendCommand('START');
+  if(bridgeBleCmd)await bridgeSendCommand('SCAN');
   if(typeof render==='function')render();
  }catch(e){alert('เชื่อมต่อ Bluetooth ไม่สำเร็จ: '+e.message)}
 }
-async function bridgeSendCommand(cmd){
+async async function bridgeSendCommand(cmd){
  if(!bridgeBleCmd)return;
  try{await bridgeBleCmd.writeValue(new TextEncoder().encode(cmd+'\n'))}catch(e){}
 }

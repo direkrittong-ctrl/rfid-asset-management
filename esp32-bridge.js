@@ -12,7 +12,33 @@ const SUT_BLE_EPC='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 const SUT_BLE_CMD='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 let bridgeBleDevice=null,bridgeBleServer=null,bridgeBleEpc=null,bridgeBleCmd=null;
 let bridgeSerialPort=null,bridgeSerialReader=null,bridgeSerialRunning=false;
-let bridgeTransport='';
+let bridgeTransport='',bridgeRxBuffer='';
+
+function bridgeHandleLine(line){
+ line=String(line||'').trim();
+ if(!line)return;
+ // Until the YRM100 frame parser is verified with the physical reader,
+ // never treat a raw binary-frame dump as an EPC tag.
+ if(/^RFID_RAW:/i.test(line)){
+  bridgeStatus('รับข้อมูลดิบจาก ESP32 แล้ว — รอ parser YRM100: '+line.slice(0,48),true);
+  return;
+ }
+ if(/^EPC\s*[:=]/i.test(line)){
+  const epc=line.replace(/^EPC\s*[:=]\s*/i,'').replace(/\s+/g,'');
+  if(epc&&typeof recordEPC==='function')recordEPC(epc);
+  return;
+ }
+ // Allow firmware/test builds to send a bare EPC line (hex string).
+ if(/^[0-9a-f]{8,64}$/i.test(line)&&typeof recordEPC==='function')recordEPC(line);
+ else bridgeStatus('ESP32: '+line,true);
+}
+function bridgeHandleChunk(chunk){
+ bridgeRxBuffer+=String(chunk||'');
+ const lines=bridgeRxBuffer.split(/\r?\n/);
+ bridgeRxBuffer=lines.pop()||'';
+ lines.forEach(bridgeHandleLine);
+ if(bridgeRxBuffer.length>512){bridgeHandleLine(bridgeRxBuffer);bridgeRxBuffer='';}
+}
 
 function bridgeStatus(text,ok=false){
  const el=document.getElementById('espStatus');
@@ -32,8 +58,8 @@ async function connectESP32BLE(){
   try{bridgeBleCmd=await service.getCharacteristic(SUT_BLE_CMD)}catch(e){bridgeBleCmd=null}
   await bridgeBleEpc.startNotifications();
   bridgeBleEpc.addEventListener('characteristicvaluechanged',e=>{
-   const text=new TextDecoder().decode(e.target.value).trim();
-   text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(typeof recordEPC==='function')recordEPC(x)});
+   const text=new TextDecoder().decode(e.target.value);
+   bridgeHandleChunk(text);
   });
   bridgeTransport='BLE';
   bridgeStatus('เชื่อมต่อ '+(bridgeBleDevice.name||'SUT-RFID')+' ผ่าน Bluetooth แล้ว',true);
@@ -65,7 +91,7 @@ async function connectESP32USB(){
   while(bridgeSerialRunning&&bridgeSerialReader){
    const {value,done}=await bridgeSerialReader.read();
    if(done)break;
-   if(value)value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(typeof recordEPC==='function')recordEPC(x)});
+   if(value)bridgeHandleChunk(value);
   }
  }catch(e){alert('เชื่อมต่อ USB ไม่สำเร็จ: '+e.message)}
 }

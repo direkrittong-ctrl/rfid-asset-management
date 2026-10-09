@@ -83,16 +83,14 @@ function scan(){
  const conn=bridgeTransport==='BLE'?'Bluetooth (BLE)':bridgeTransport==='USB'?'USB Serial':'ยังไม่ได้เชื่อมต่อ';
  return `<div class="grid"><div class="card"><h3>ตรวจนับ RFID / ESP32</h3>
  <p>เชื่อมต่อเครื่องอ่าน RFID ผ่าน ESP32 แล้วส่ง EPC เข้าระบบโดยตรง</p>
- <div class="toolbar">
-  ${supported.ble?'<button class="btn" onclick="connectESP32BLE()">📱/💻 เชื่อมต่อ Bluetooth</button>':''}
+  <button class="btn" onclick="connectESP32BLE()">📱 เชื่อมต่อ Bluetooth ESP32</button>
   ${supported.serial?'<button class="btn" onclick="connectESP32USB()">🔌 เชื่อมต่อ USB</button>':''}
   <button class="btn orange" onclick="startDemoScan()">เริ่มสแกนจำลอง</button>
   <button class="btn gray" onclick="clearScan()">ล้างผล</button>
- </div>
- <div id="espStatus" class="notice ${bridgeTransport?'success':''}">${bridgeTransport?'🟢 เชื่อมต่อผ่าน '+conn+' แล้ว':'⚪ ยังไม่ได้เชื่อมต่อ ESP32'}</div>
+ </div> <div id="espStatus" class="notice ${bridgeTransport?'success':''}">${bridgeTransport?'🟢 เชื่อมต่อผ่าน '+conn+' แล้ว':'⚪ ยังไม่ได้เชื่อมต่อ ESP32'}</div>
  <p>การเชื่อมต่อ: <b>${conn}</b></p>
  <p>พบ EPC <b>${typeof scanSeen!=='undefined'?scanSeen.size:0}</b> | ตรงกับฐานข้อมูล <b>${found.length}</b> / ${db.assets.length}</p>
- <small style="color:#718096">มือถือ: ใช้ Bluetooth BLE • PC: ใช้ USB หรือ Bluetooth</small>
+ <small style="color:#718096">มือถือ Android: เปิดด้วย Chrome ผ่าน HTTPS และอนุญาต Nearby devices • iPhone/iPad ไม่รองรับ Web Bluetooth ในเบราว์เซอร์ทั่วไป • PC: ใช้ Chrome/Edge</small>
  </div><div class="card"><h3>ผลการตรวจนับ</h3>${found.length?tableAssets(found):'<div class="empty">ยังไม่พบ EPC ที่ตรงกับฐานข้อมูล</div>'}</div></div>`;
 }
 

@@ -15,17 +15,34 @@ const seed={
 let db=JSON.parse(localStorage.getItem(K)||'null')||JSON.parse(localStorage.getItem('sut_rfid_db_v4')||'null')||JSON.parse(localStorage.getItem('sut_rfid_db_v3')||'null')||structuredClone(seed);
 db.users??=[];db.assets??=[];db.maintenance??=[];db.repairs??=[];db.usage??=[];db.assets.forEach(a=>a.image??='');
 let me=null,page='home',serialPort=null,serialReader=null,scanRunning=false,scanSeen=new Set(),csvTarget='assets';
-try{me=db.users.find(u=>u.username===localStorage.getItem('sut_user')&&u.active)||null}catch(e){}
+const supabaseClient = window.supabase?.createClient && window.SUPABASE_URL && window.SUPABASE_PUBLISHABLE_KEY
+  ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY)
+  : null;
 const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const save=()=>localStorage.setItem(K,JSON.stringify(db));
 const go=p=>{page=p;render()};
 const v=id=>document.getElementById(id)?.value??'';
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now()+Math.floor(Math.random()*1000);
-function login(){const u=db.users.find(x=>x.username===v('lu')&&x.password===v('lp')&&x.active);if(!u)return alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');me=u;localStorage.setItem('sut_user',u.username);render()}
-function logout(){me=null;localStorage.removeItem('sut_user');stopScan(true);render()}
+async function loadProfile(session){
+  if(!session?.user||!supabaseClient){me=null;render();return}
+  const {data:profile,error}=await supabaseClient.from('profiles').select('id,full_name,username,role,department,is_active').eq('id',session.user.id).maybeSingle();
+  if(error||!profile||profile.is_active!==true){await supabaseClient.auth.signOut();me=null;render();alert('ไม่พบโปรไฟล์ที่ใช้งานได้ กรุณาติดต่อผู้ดูแลระบบ');return}
+  me={id:profile.id,name:profile.full_name||session.user.email,username:profile.username||session.user.email,role:profile.role,active:profile.is_active,email:session.user.email};
+  render();
+}
+async function login(){
+  if(!supabaseClient)return alert('ยังโหลดการตั้งค่า Supabase ไม่สำเร็จ กรุณาตรวจสอบ supabase-config.js');
+  const email=v('lu').trim(),password=v('lp');
+  if(!email||!password)return alert('กรุณากรอกอีเมลและรหัสผ่าน');
+  const btn=document.querySelector('.loginbox .btn');if(btn){btn.disabled=true;btn.textContent='กำลังเข้าสู่ระบบ...'}
+  const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+  if(error){if(btn){btn.disabled=false;btn.textContent='เข้าสู่ระบบ'}return alert('เข้าสู่ระบบไม่สำเร็จ: ตรวจสอบอีเมลและรหัสผ่าน')}
+  await loadProfile(data.session);
+}
+async function logout(){if(supabaseClient)await supabaseClient.auth.signOut();me=null;stopScan(true);render()}
 function render(){document.getElementById('app').innerHTML=me?shell():loginPage()}
-function loginPage(){return `<div class="login"><div class="loginbox"><img src="sut-logo.jpg"><h2>ระบบจัดการครุภัณฑ์ RFID</h2><div class="orange">ศูนย์เครื่องมือวิทยาศาสตร์และเทคโนโลยี</div><div class="field"><label>ชื่อผู้ใช้งาน</label><input id="lu" autocomplete="username"></div><div class="field"><label>รหัสผ่าน</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div><button class="btn" onclick="login()">เข้าสู่ระบบ</button><p style="font-size:12px;color:#8998a8">บัญชีเริ่มต้น: admin / admin123</p></div></div>`}
+function loginPage(){return `<div class="login"><div class="loginbox"><img src="sut-logo.jpg"><h2>ระบบจัดการครุภัณฑ์ RFID</h2><div class="orange">ศูนย์เครื่องมือวิทยาศาสตร์และเทคโนโลยี</div><div class="field"><label>อีเมล</label><input id="lu" type="email" autocomplete="username" placeholder="name@example.com"></div><div class="field"><label>รหัสผ่าน</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div><button class="btn" onclick="login()">เข้าสู่ระบบ</button><p style="font-size:12px;color:#8998a8">เข้าสู่ระบบด้วยบัญชีที่ลงทะเบียนใน Supabase</p></div></div>`}
 function shell(){let nav=[['home','หน้าหลัก'],['scan','ตรวจนับ RFID'],['assets','จัดการครุภัณฑ์'],['maintenance','Maintenance'],['usage','ประวัติการใช้งาน'],['repairs','การแจ้งซ่อม / ซ่อมบำรุง'],['reports','นำเข้า / ส่งออก CSV']];if(me.role==='admin')nav.push(['users','จัดการผู้ใช้งาน']);nav.push(['settings','ตั้งค่า']);return `<div class="layout"><aside class="side"><div class="brand"><img src="sut-logo.jpg"><div><b>ศูนย์เครื่องมือวิทยาศาสตร์และเทคโนโลยี</b><small>มหาวิทยาลัยเทคโนโลยีสุรนารี</small></div></div><div class="nav">${nav.map(n=>`<button class="${page===n[0]?'active':''}" onclick="go('${n[0]}')">${n[1]}</button>`).join('')}</div></aside><main class="main"><header class="top"><b>${title()}</b><div>👤 ${esc(me.name)} <span class="badge info">${esc(me.role)}</span> <button class="btn gray" onclick="logout()">ออกจากระบบ</button></div></header><section class="content">${body()}</section></main></div><div id="modal" class="modal"></div>`}
 function title(){return {home:'หน้าหลัก',scan:'ตรวจนับ RFID',assets:'จัดการครุภัณฑ์',maintenance:'Maintenance / รอบบำรุงรักษา',usage:'ประวัติการใช้งาน',repairs:'การแจ้งซ่อม / ซ่อมบำรุง',reports:'นำเข้า / ส่งออก CSV',users:'จัดการผู้ใช้งาน',settings:'ตั้งค่า'}[page]||'หน้าหลัก'}
 function counts(){let a=db.assets;return [a.length,a.filter(x=>x.status==='ใช้งานปกติ').length,a.filter(x=>x.status==='ส่งซ่อม').length,a.filter(x=>x.status==='ถึงรอบบำรุงรักษา').length,db.users.filter(x=>x.active).length]}
@@ -80,3 +97,4 @@ function showModal(html){let m=document.getElementById('modal');m.innerHTML=`<di
 function closeModal(){let m=document.getElementById('modal');if(m){m.classList.remove('show');m.innerHTML=''}}
 window.login=login;window.logout=logout;window.go=go;window.connectESP32=connectESP32;window.startDemoScan=startDemoScan;window.stopScan=stopScan;window.clearScan=clearScan;window.assetForm=assetForm;window.saveAsset=saveAsset;window.deleteAsset=deleteAsset;window.maintForm=maintForm;window.saveMaint=saveMaint;window.deleteMaint=deleteMaint;window.repairForm=repairForm;window.saveRepair=saveRepair;window.userForm=userForm;window.saveUser=saveUser;window.passwordForm=passwordForm;window.savePassword=savePassword;window.closeModal=closeModal;window.exportCSV=exportCSV;window.downloadTemplate=downloadTemplate;window.importCSV=importCSV;window.filterAssets=filterAssets;
 save();render();
+if(supabaseClient){supabaseClient.auth.getSession().then(({data})=>{if(data?.session)loadProfile(data.session)});supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){me=null;render()}else if(event==='SIGNED_IN'&&session&&!me){setTimeout(()=>loadProfile(session),0)}})}

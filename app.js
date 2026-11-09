@@ -37,7 +37,7 @@ async function login(){
   if(!email||!password)return alert('กรุณากรอกอีเมลและรหัสผ่าน');
   const btn=document.querySelector('.loginbox .btn');if(btn){btn.disabled=true;btn.textContent='กำลังเข้าสู่ระบบ...'}
   const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
-  if(error){if(btn){btn.disabled=false;btn.textContent='เข้าสู่ระบบ'}return alert('เข้าสู่ระบบไม่สำเร็จ: ตรวจสอบอีเมลและรหัสผ่าน')}
+  if(error){if(btn){btn.disabled=false;btn.textContent='เข้าสู่ระบบ'}return alert('เข้าสู่ระบบไม่สำเร็จ: '+(error.message||'ไม่ทราบสาเหตุ')+' (รหัส: '+(error.code||error.status||'ไม่ระบุ')+')')}
   await loadProfile(data.session);
 }
 async function logout(){if(supabaseClient)await supabaseClient.auth.signOut();me=null;stopScan(true);render()}
